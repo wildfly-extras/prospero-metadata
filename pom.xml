@@ -17,7 +17,7 @@
     <properties>
         <version.org.apache.maven.resolver>1.9.17</version.org.apache.maven.resolver>
         <version.org.apache.maven>3.6.3</version.org.apache.maven>
-        <version.org.jboss.galleon>5.2.1.Final</version.org.jboss.galleon>
+        <version.org.jboss.galleon>5.2.2.Final</version.org.jboss.galleon>
         <version.org.mockito>5.3.0</version.org.mockito>
         <version.junit>4.13.2</version.junit>
         <version.org.wildfly.channel>1.0.5.Final</version.org.wildfly.channel>
