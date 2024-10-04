@@ -27,7 +27,9 @@ import org.wildfly.channel.Channel;
 import org.wildfly.channel.ChannelManifest;
 import org.wildfly.channel.ChannelManifestCoordinate;
 import org.wildfly.channel.ChannelManifestMapper;
+import org.wildfly.channel.ChannelSession;
 import org.wildfly.channel.Repository;
+import org.wildfly.channel.RuntimeChannel;
 import org.wildfly.channel.maven.VersionResolverFactory;
 import org.wildfly.channel.spi.MavenVersionsResolver;
 import org.wildfly.channel.version.VersionMatcher;
@@ -55,12 +57,43 @@ public class ManifestVersionResolver {
 
     private final VersionResolverFactory resolverFactory;
 
+    public static ManifestVersionRecord getCurrentVersions(ChannelSession session) throws IOException {
+        Objects.requireNonNull(session);
+
+        final ManifestVersionRecord record = new ManifestVersionRecord();
+
+        for (RuntimeChannel runtimeChannel : session.getRuntimeChannels()) {
+            final Channel channelDefinition = runtimeChannel.getChannelDefinition();
+            final ChannelManifestCoordinate manifestCoordinate = channelDefinition.getManifestCoordinate();
+            final ChannelManifest manifest = runtimeChannel.getChannelManifest();
+            if (manifestCoordinate == null) {
+                final List<String> repos = channelDefinition.getRepositories().stream()
+                        .map(Repository::getId)
+                        .collect(Collectors.toList());
+                record.addManifest(new ManifestVersionRecord.NoManifest(repos, channelDefinition.getNoStreamStrategy().toString()));
+            } else if (manifestCoordinate.getUrl() != null) {
+                String hashCode = HashUtils.hash(read(manifestCoordinate.getUrl()));
+                record.addManifest(new ManifestVersionRecord.UrlManifest(manifestCoordinate.getUrl().toExternalForm(), hashCode, manifest.getDescription()));
+            } else if (manifestCoordinate.getMaven() != null) {
+                final String description = manifest.getDescription();
+                record.addManifest(new ManifestVersionRecord.MavenManifest(
+                        manifestCoordinate.getGroupId(),
+                        manifestCoordinate.getArtifactId(),
+                        manifestCoordinate.getVersion(),
+                        description));
+            }
+        }
+
+        return record;
+    }
+
     /**
      * creates the resolver using an offline repository session
      *
      * @param localMavenCache - path to the local cache used to resolve metadata during provisioning
      * @param system
      */
+    @Deprecated
     public ManifestVersionResolver(Path localMavenCache, RepositorySystem system) {
         Objects.requireNonNull(localMavenCache);
         Objects.requireNonNull(system);
@@ -70,6 +103,7 @@ public class ManifestVersionResolver {
     }
 
     // used in tests only
+    @Deprecated
     ManifestVersionResolver(VersionResolverFactory resolverFactory) {
         this.resolverFactory = resolverFactory;
     }
@@ -81,6 +115,7 @@ public class ManifestVersionResolver {
      * @return {@code ManifestVersionRecord} of latest available versions of manifests
      * @throws IOException - if unable to resolve any of the manifests
      */
+    @Deprecated
     public ManifestVersionRecord getCurrentVersions(List<Channel> channels) throws IOException {
         Objects.requireNonNull(channels);
 
@@ -140,7 +175,7 @@ public class ManifestVersionResolver {
         return description;
     }
 
-    private String read(URL url) throws IOException {
+    private static String read(URL url) throws IOException {
         try(InputStream inputStream = url.openStream();
             OutputStream outputStream = new ByteArrayOutputStream()) {
             inputStream.transferTo(outputStream);

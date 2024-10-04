@@ -29,7 +29,9 @@ import org.wildfly.channel.Channel;
 import org.wildfly.channel.ChannelManifest;
 import org.wildfly.channel.ChannelManifestCoordinate;
 import org.wildfly.channel.ChannelManifestMapper;
+import org.wildfly.channel.ChannelSession;
 import org.wildfly.channel.Repository;
+import org.wildfly.channel.RuntimeChannel;
 import org.wildfly.channel.maven.VersionResolverFactory;
 import org.wildfly.channel.spi.MavenVersionsResolver;
 
@@ -43,6 +45,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -178,6 +181,61 @@ public class ManifestVersionResolverTest {
         assertThat(currentVersions.getUrlManifests()).isEmpty();
         assertThat(currentVersions.getOpenManifests()).isEmpty();
 
+    }
+
+    @Test
+    public void channelSessionToVersionRecord() throws Exception {
+        final File manifestFile = temp.newFile();
+        final URL url = manifestFile.toURI().toURL();
+        final Channel channel1 = new Channel.Builder()
+                .setManifestCoordinate("group_a", "artifact_a", "1.0.0")
+                .build();
+        final Channel channel2 = new Channel.Builder()
+                .setManifestUrl(url)
+                .build();
+        final Channel channel3 = new Channel.Builder()
+                .setResolveStrategy(Channel.NoStreamStrategy.LATEST)
+                .addRepository("test-repo", "http://test.te")
+                .build();
+
+        final ChannelManifest manifest1 = new ChannelManifest.Builder().setDescription("Manifest 1").build();
+        final ChannelManifest manifest2 = new ChannelManifest.Builder().setDescription("Manifest 2").build();
+
+        final List<RuntimeChannel> channels = List.of(
+                new RuntimeChannel(channel1, manifest1, null),
+                new RuntimeChannel(channel2, manifest2, null),
+                new RuntimeChannel(channel3, null, null)
+
+        );
+
+        final ChannelSession sessionMock = mock(ChannelSession.class);
+        when(sessionMock.getRuntimeChannels()).thenReturn(channels);
+        final ManifestVersionRecord currentVersions = ManifestVersionResolver.getCurrentVersions(sessionMock);
+
+
+        assertThat(currentVersions.getOpenManifests())
+                .flatMap(ManifestVersionRecord.NoManifest::getRepos)
+                .containsExactly("test-repo");
+        assertThat(currentVersions.getOpenManifests())
+                .map(ManifestVersionRecord.NoManifest::getStrategy)
+                .containsExactly(Channel.NoStreamStrategy.LATEST.toString());
+
+        assertThat(currentVersions.getUrlManifests())
+                .map(ManifestVersionRecord.UrlManifest::getUrl)
+                .containsExactly(url.toExternalForm());
+        assertThat(currentVersions.getUrlManifests())
+                .map(ManifestVersionRecord.UrlManifest::getHash)
+                .containsExactly(HashUtils.hashFile(Path.of(url.toURI())));
+        assertThat(currentVersions.getUrlManifests())
+                .map(ManifestVersionRecord.UrlManifest::getDescription)
+                .containsExactly("Manifest 2");
+
+        assertThat(currentVersions.getMavenManifests())
+                .map(ManifestVersionRecord.MavenManifest::getVersion)
+                .containsExactly("1.0.0");
+        assertThat(currentVersions.getMavenManifests())
+                .map(ManifestVersionRecord.MavenManifest::getDescription)
+                .containsExactly("Manifest 1");
     }
 
 }
