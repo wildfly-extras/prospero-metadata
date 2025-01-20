@@ -28,7 +28,7 @@
         <version.org.mockito>5.14.1</version.org.mockito>
         <version.junit>4.13.2</version.junit>
         <version.org.wildfly.channel>1.2.1.Final</version.org.wildfly.channel>
-        <version.assertj>3.27.0</version.assertj>
+        <version.assertj>3.27.3</version.assertj>
 
         <version.org.apache.maven.plugins.pmd>3.25.0</version.org.apache.maven.plugins.pmd>
         <version.org.wildfly.checkstyle-config>1.0.8.Final</version.org.wildfly.checkstyle-config>
